@@ -535,7 +535,7 @@ calculate_admin_exposure <- function(admin_sf, shakemap_sf, demographics_stack, 
     st_collection_extract("POLYGON") 
   
   sf_use_s2(current_s2_state)     # Turn it back on to whatever it was before
-  # -----------------------------------------------------------------
+  --------
   
   # 3. Ensure the new intersected polygons match the raster stack CRS
   if (st_crs(admin_shakemap_intersect) != crs(demographics_stack, proj = TRUE)) {
@@ -636,9 +636,8 @@ cities <- data.frame(
 ven_map <- st_transform(ab_fixed, 4326) 
 shake_map <- st_transform(shakemap_dissolved_75, 4326)
 
-# ---------------------------------------------------------
 # 2. BUILD THE MAP (WITH LEGEND)
-# ---------------------------------------------------------
+
 shake_colors <- c(
   "IV (Light)"       = "#FCE8B2", 
   "V (Moderate)"     = "#FCD15B", 
@@ -667,7 +666,7 @@ p_map <- ggplot() +
   scale_fill_manual(
     values = shake_colors, 
     name = "USGS MMI\nImpact Zones",
-    breaks = c("VIII (Severe)", "VII (Very Strong)", "VI (Strong)", "V (Moderate)", "IV (Light)")
+    breaks = c("IX (Violent)",  "VIII (Severe)", "VII (Very Strong)", "VI (Strong)", "V (Moderate)", "IV (Light)")
   ) +
   coord_sf(
     xlim = c(shake_bbox["xmin"], shake_bbox["xmax"]), 
@@ -694,18 +693,19 @@ p_map <- ggplot() +
     title = "Earthquake Magnitude 7.5 - 28 km SE of Yumare, Venezuela | ShakeMap MMI Impact Zones",
     subtitle = "Estimated Population Exposure by Demographic Cohort" # Swap text here if you prefer another option!
   )
-# ---------------------------------------------------------
+
 # 3. BUILD THE TABLE (WITH MMI ROW COLORS)
-# ---------------------------------------------------------
+
 table_data <- exposure_75_formatted |>
   filter(mmi_class != 3) |> 
-  select(label_en, Total_Pop, Girls_10_14, Teenagers_15_19, Youth_20_24, Older_65_Plus) |>
+  select(label_en, Total_Pop, Girls_10_14, Teenagers_15_19, Youth_20_24, WRA_15_49, Older_65_Plus) |>
   rename(
     `MMI Intensity` = label_en,
     `Total Pop` = Total_Pop,
     `Girls (10-14)` = Girls_10_14,
-    `Teens (15-19)` = Teenagers_15_19,
+    `Teenagers (15-19)` = Teenagers_15_19,
     `Youth (20-24)` = Youth_20_24,
+    `Women Reproductive Age (15-49)` = WRA_15_49 ,
     `Elderly (65+)` = Older_65_Plus
   )
 
@@ -734,15 +734,15 @@ p_table_grob <- tableGrob(table_data, rows = NULL, theme = ttheme_custom)
 p_table_wrapped <- wrap_elements(p_table_grob)
 
 
-# ---------------------------------------------------------
+
 # 4. BUILD THE METADATA FOOTER (FIXED BLACK TEXT)
-# ---------------------------------------------------------
+
 meta_data <- data.frame(
   x = c(0, 0, 0, 0, 0, 2.5, 2.5, 2.5, 2.5, 2.5),
   y = c(6, 5, 4, 3, 2, 5, 4, 3, 2, 1),
   label = c("METADATA & NOTES", "Event:", "Date Generated:", "Data Sources:", "Methodology:", 
-            "Yumare M7.5 Mainshock - National Exposure", format(Sys.Date(), "%B %Y"), 
-            "USGS-M 7.2 - 28 km SE of Yumare, Venezuela | Venezuela (Bolivarian Republic of) - Subnational Administrative Boundaries", 
+            "Yumare Magnitude 7.5 Mainshock - National Exposure", format(Sys.Date(), "%B %Y"), 
+            "USGS-M 7.5 - 28 km SE of Yumare, Venezuela | Venezuela (Bolivarian Republic of) - Subnational Administrative Boundaries", 
             "Fractional area extraction (exactextractr) on 100m demographic grids", "UNFPA LACRO"),
   fontface = c("bold", "bold", "bold", "bold", "bold", "italic", "italic", "italic", "italic", "italic"),
   color = "black"
@@ -754,10 +754,9 @@ p_footer <- ggplot(meta_data, aes(x = x, y = y, label = label, fontface = fontfa
   theme_void() +
   coord_cartesian(xlim = c(0, 15), ylim = c(0.5, 6.5)) +
   theme(legend.position = "none")
-# ---------------------------------------------------------
+
 # 5. ASSEMBLE AND EXPORT
-# ---------------------------------------------------------
-# 5. ASSEMBLE AND EXPORT
+
 # Ensure no stray characters at the end of the line
 final_infographic <- p_map / p_table_wrapped / p_footer
 
@@ -795,9 +794,9 @@ cities <- data.frame(
 ven_map <- st_transform(ab_fixed, 4326) 
 shake_map <- st_transform(shakemap_dissolved_72, 4326)
 
-# ---------------------------------------------------------
+
 # 2. BUILD THE MAP (WITH LEGEND)
-# ---------------------------------------------------------
+
 shake_colors_72 <- c(
   "IV (Light)"       = "#FCE8B2", 
   "V (Moderate)"     = "#FCD15B", 
@@ -852,18 +851,19 @@ p_map <- ggplot() +
     title = "Earthquake Magnitude 7.2 - 23 km SE of Yumare, Venezuela | ShakeMap MMI Impact Zones",
     subtitle = "Estimated Population Exposure by Demographic Cohort" # Swap text here if you prefer another option!
   )
-# ---------------------------------------------------------
+
 # 3. BUILD THE TABLE (WITH MMI ROW COLORS)
-# ---------------------------------------------------------
+
 table_data <- exposure_72_formatted |>
   filter(mmi_class != 3) |> 
-  select(label_en, Total_Pop, Girls_10_14, Teenagers_15_19, Youth_20_24, Older_65_Plus) |>
+  select(label_en, Total_Pop, Girls_10_14, Teenagers_15_19, Youth_20_24, WRA_15_49, Older_65_Plus) |>
   rename(
     `MMI Intensity` = label_en,
     `Total Pop` = Total_Pop,
     `Girls (10-14)` = Girls_10_14,
-    `Teens (15-19)` = Teenagers_15_19,
+    `Teenagers (15-19)` = Teenagers_15_19,
     `Youth (20-24)` = Youth_20_24,
+    `Women Reproductive Age (15-49)` = WRA_15_49,
     `Elderly (65+)` = Older_65_Plus
   )
 
@@ -892,14 +892,14 @@ p_table_grob <- tableGrob(table_data, rows = NULL, theme = ttheme_custom)
 p_table_wrapped <- wrap_elements(p_table_grob)
 
 
-# ---------------------------------------------------------
+
 # 4. BUILD THE METADATA FOOTER (FIXED BLACK TEXT)
-# ---------------------------------------------------------
+
 meta_data <- data.frame(
   x = c(0, 0, 0, 0, 0, 2.5, 2.5, 2.5, 2.5, 2.5),
   y = c(6, 5, 4, 3, 2, 5, 4, 3, 2, 1),
   label = c("METADATA & NOTES", "Event:", "Date Generated:", "Data Sources:", "Methodology:", 
-            "Yumare M7.5 Mainshock - National Exposure", format(Sys.Date(), "%B %Y"), 
+            "Yumare Magnitude 7.2 Foreshock - National Exposure", format(Sys.Date(), "%B %Y"), 
             "USGS-M 7.2 - 23 km SE of Yumare, Venezuela | Venezuela (Bolivarian Republic of) - Subnational Administrative Boundaries", 
             "Fractional area extraction (exactextractr) on 100m demographic grids", "UNFPA LACRO"),
   fontface = c("bold", "bold", "bold", "bold", "bold", "italic", "italic", "italic", "italic", "italic"),
@@ -912,9 +912,8 @@ p_footer <- ggplot(meta_data, aes(x = x, y = y, label = label, fontface = fontfa
   theme_void() +
   coord_cartesian(xlim = c(0, 15), ylim = c(0.5, 6.5)) +
   theme(legend.position = "none")
-# ---------------------------------------------------------
-# 5. ASSEMBLE AND EXPORT
-# ---------------------------------------------------------
+
+
 # 5. ASSEMBLE AND EXPORT
 # Ensure no stray characters at the end of the line
 final_infographic <- p_map / p_table_wrapped / p_footer

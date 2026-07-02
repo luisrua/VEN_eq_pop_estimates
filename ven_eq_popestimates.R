@@ -222,11 +222,11 @@ pop_total  <- pop_female + pop_male
 # B. Girls (female 10 - 14)
 pop_fem_10_14 <- sum_cohorts(wp_stack, "[f]", "10")
 
-# C. Teenagers (Ages 15 - 19)
-pop_teen_15_19 <- sum_cohorts(wp_stack, "[fm]", "15")
+# C. Teenagers (female Ages 15 - 19)
+pop_teen_15_19 <- sum_cohorts(wp_stack, "[f]", "15")
 
-# D. Young (Ages 20 - 24)
-pop_youth_20_24 <- sum_cohorts(wp_stack, "[fm]", "20")
+# D. Young (female Ages 20 - 24)
+pop_youth_20_24 <- sum_cohorts(wp_stack, "[f]", "20")
 
 # E. Women of Reproductive Age (WRA: Female Ages 15 to 45)
 pop_wra <- sum_cohorts(wp_stack, "f", c("15", "20", "25", "30", "35", "40", "45"))
@@ -535,7 +535,7 @@ calculate_admin_exposure <- function(admin_sf, shakemap_sf, demographics_stack, 
     st_collection_extract("POLYGON") 
   
   sf_use_s2(current_s2_state)     # Turn it back on to whatever it was before
-  --------
+
   
   # 3. Ensure the new intersected polygons match the raster stack CRS
   if (st_crs(admin_shakemap_intersect) != crs(demographics_stack, proj = TRUE)) {
@@ -603,8 +603,9 @@ admin_exposure_72_formatted <- admin_exposure_72 |>
 # View the final cross-tabulated results
 View(admin_exposure_72_formatted)
 
-
-
+## 3.3 Export basic outcome ----
+write_csv(admin_exposure_72_formatted, paste0(folder, "tables/admin1_exposure_72_formatted.csv"))
+write_csv(admin_exposure_75_formatted, paste0(folder, "tables/admin1_exposure_75_formatted.csv"))
 
 
 
@@ -891,8 +892,6 @@ ttheme_custom <- ttheme_minimal(
 p_table_grob <- tableGrob(table_data, rows = NULL, theme = ttheme_custom)
 p_table_wrapped <- wrap_elements(p_table_grob)
 
-
-
 # 4. BUILD THE METADATA FOOTER (FIXED BLACK TEXT)
 
 meta_data <- data.frame(
@@ -931,3 +930,172 @@ ggsave(
   dpi = 300,
   bg = "white"
 )
+
+# 5. MORE TABLES --------
+## 5.1 TABLES 5YEARS OLD AGE GROUPS AND BY SEX AND BY MMI ZONES ADMIN 1 ESTADOS ------
+
+library(sf)
+library(dplyr)
+library(exactextractr)
+# Note: rlang is loaded automatically with dplyr, which handles the .data[[]] pronoun
+
+extract_subnational_exposure <- function(admin_sf, shakemap_sf, raster_stack, admin_level_col) {
+  
+  cat("\nAligning CRS and intersecting geometries...\n")
+  
+  # 1. Ensure CRS matches between Admin boundaries and ShakeMap
+  if (st_crs(admin_sf) != st_crs(shakemap_sf)) {
+    admin_sf <- st_transform(admin_sf, st_crs(shakemap_sf))
+  }
+  
+  # --- THE FIX: Force s2 off temporarily just for this operation ---
+  current_s2_state <- sf_use_s2() # Remember what the user had it set to
+  suppressMessages(sf_use_s2(FALSE)) # Force it off to avoid "Edge crosses edge" errors
+  
+  # 2. Intersect: Slice the ShakeMap polygons by the Admin boundaries
+  admin_mmi_intersect <- suppressWarnings(st_intersection(admin_sf, shakemap_sf)) |>
+    st_collection_extract("POLYGON") |>
+    st_cast("MULTIPOLYGON")
+  
+  suppressMessages(sf_use_s2(current_s2_state)) # Turn it back on to whatever it was before
+  
+  # 3. Ensure the new intersected polygons match the raster stack CRS
+  if (st_crs(admin_mmi_intersect) != crs(raster_stack, proj = TRUE)) {
+    admin_mmi_intersect <- st_transform(admin_mmi_intersect, crs(raster_stack))
+  }
+  
+  cat("Running fast extraction by Admin Unit + MMI Zone...\n")
+  
+  # 4. Extract the population demographics
+  admin_mmi_raw <- exact_extract(
+    raster_stack, 
+    admin_mmi_intersect, 
+    fun = "sum",
+    append_cols = c(admin_level_col, "label_en"),
+    progress = TRUE 
+  )
+  
+  # 5. Clean, summarize, and sort dynamically
+  final_table <- admin_mmi_raw |>
+    rename_with(~ gsub("sum\\.", "", .x)) |>
+    
+    # Evaluate the dynamic column name
+    group_by(.data[[admin_level_col]], label_en) |>
+    summarise(across(everything(), sum, na.rm = TRUE), .groups = "drop") |>
+    
+    # Drop the weak zone
+    filter(label_en != "II - III (Weak)") |>
+    
+    # Sort alphabetically by Admin Name, then by severity
+    arrange(.data[[admin_level_col]], desc(label_en))
+  
+  cat("Done!\n")
+  return(final_table)
+}
+
+### 5.1.1 For M 7.5 event -------
+# 1. State/Department Level (Admin 1)
+exposure_admin1_75 <- extract_subnational_exposure(
+  admin_sf = ab, 
+  shakemap_sf = shakemap_dissolved_75, 
+  raster_stack = wp_stack, 
+  admin_level_col = "adm1_name"
+)
+
+# 2. Municipality/County Level (Admin 2)
+exposure_admin2_75 <- extract_subnational_exposure(
+  admin_sf = ab, 
+  shakemap_sf = shakemap_dissolved_75, 
+  raster_stack = wp_stack, 
+  admin_level_col = "adm2_name"
+)
+
+# 3. Parish/District Level (Admin 3)
+exposure_admin3_75 <- extract_subnational_exposure(
+  admin_sf = ab, 
+  shakemap_sf = shakemap_dissolved_75, 
+  raster_stack = wp_stack, 
+  admin_level_col = "adm3_name"
+)
+
+### 5.1.2 For M 7.2 event -------
+# 1. State/Department Level (Admin 1)
+exposure_admin1_72 <- extract_subnational_exposure(
+  admin_sf = ab, 
+  shakemap_sf = shakemap_dissolved_72, 
+  raster_stack = wp_stack, 
+  admin_level_col = "adm1_name"
+)
+
+# 2. Municipality/County Level (Admin 2)
+exposure_admin2_72 <- extract_subnational_exposure(
+  admin_sf = ab, 
+  shakemap_sf = shakemap_dissolved_72, 
+  raster_stack = wp_stack, 
+  admin_level_col = "adm2_name"
+)
+
+# 3. Parish/District Level (Admin 3)
+exposure_admin3_72 <- extract_subnational_exposure(
+  admin_sf = ab, 
+  shakemap_sf = shakemap_dissolved_72, 
+  raster_stack = wp_stack, 
+  admin_level_col = "adm3_name"
+)
+
+
+## 5.2 Format the tables ------
+# Function to format these tables
+
+format_exposure_table <- function(df, event_title) {
+  
+  # 1. CLEAN COLUMN NAMES (Direct find-and-replace)
+  # This forces R to strip the strings instantly before dplyr even touches the table
+  names(df) <- gsub("_2026_CN_100m_R2025A_v1", "", names(df))
+  names(df) <- gsub("^ven_", "", names(df))
+  
+  df_formatted <- df |>
+    mutate(across(where(is.numeric), ~ format(round(.x, -1), big.mark = ",", scientific = FALSE, trim = TRUE))) |>
+    mutate(across(everything(), as.character))
+  
+  # 2. Dynamically grab the names of the first two columns (e.g., "adm1_name" and "label_en")
+  col1 <- names(df_formatted)[1]
+  col2 <- names(df_formatted)[2]
+  
+  # 3. Create the metadata block
+  meta_df <- data.frame(
+    col_a = c("", "METADATA & NOTES", "Event:", "Date Generated:", "Data Sources:", "Methodology:", ""),
+    col_b = c("", "", event_title, format(Sys.Date(), "%B %Y"), 
+              "USGS ShakeMap | HDX VEN Admin Boundaries | WorldPop 2026_CN_100m_R2025A_v1 for Venezuela", 
+              "Fractional area extraction (exactextractr) on 100m demographic grids", 
+              "UNFPA LACRO"),
+    stringsAsFactors = FALSE
+  )
+  
+  # Rename the metadata columns to perfectly match the main table
+  names(meta_df) <- c(col1, col2)
+  
+  # 4. Stack them together and replace any NA values with clean blank spaces
+  final_table <- bind_rows(df_formatted, meta_df)
+  final_table[is.na(final_table)] <- ""
+  
+  return(final_table)
+}
+
+# Format the tables and add the specific event titles
+final_admin1_75 <- format_exposure_table(exposure_admin1_75, "Yumare M7.5 - Admin 1 (Region) Exposure")
+final_admin2_75 <- format_exposure_table(exposure_admin2_75, "Yumare M7.5 - Admin 2 (Municipio) Exposure")
+final_admin3_75 <- format_exposure_table(exposure_admin3_75, "Yumare M7.5 - Admin 3 (Parroquia) Exposure")
+
+final_admin1_72 <- format_exposure_table(exposure_admin1_72, "Yumare M7.2 - Admin 1 (Region) Exposure")
+final_admin2_72 <- format_exposure_table(exposure_admin2_72, "Yumare M7.2 - Admin 2 (Municipio) Exposure")
+final_admin3_72 <- format_exposure_table(exposure_admin3_72, "Yumare M7.2 - Admin 3 (Parroquia) Exposure")
+
+write.xlsx(final_admin1_75, paste0(folder,"tables/M75_Admin1.xlsx"), rowNames = FALSE)
+write.xlsx(final_admin2_75, paste0(folder,"tables/M75_Admin2.xlsx"), rowNames = FALSE)
+write.xlsx(final_admin3_75, paste0(folder,"tables/M75_Admin3.xlsx"), rowNames = FALSE)
+
+write.xlsx(final_admin1_72, paste0(folder,"tables/M72_Admin1.xlsx"), rowNames = FALSE)
+write.xlsx(final_admin2_72, paste0(folder,"tables/M72_Admin2.xlsx"), rowNames = FALSE)
+write.xlsx(final_admin3_72, paste0(folder,"tables/M72_Admin3.xlsx"), rowNames = FALSE)
+

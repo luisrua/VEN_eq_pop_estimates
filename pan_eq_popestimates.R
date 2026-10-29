@@ -37,6 +37,7 @@ country <- "pan"
 ### 1.1.2 Download and process the ShakeMap M 7.7 - 12 km WSW of Pitaloza Arriba, Panama ----
 # 2026-10-09 17:56:06 (UTC)7.587°N 80.769°W12.6 km depth event ----
 url <- "https://earthquake.usgs.gov/pdl/products/urn:usgs-product:us:shakemap:us6000u18k:1791576568862/contents/download/shape.zip"
+
 download.file(url, destfile = paste0(layers,country,"_shakemap.zip"), mode = "wb")
 
 unzip(paste0(layers,country,"_shakemap.zip"), exdir = paste0(layers,"shakemap_data"))
